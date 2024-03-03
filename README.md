@@ -1,8 +1,6 @@
 # CTF Write-Up
 > PUSH RANK!!! To be a Pro Hacker
 
-[![HTB Lab][htb-image]][htb-url]
-
 ## Release History
 
 * HTB: Dante
