@@ -1,5 +1,24 @@
 # Reconnaissances
 ## 172.16.1.13
+Port scanning script
+```bash
+#!/bin/bash
+
+target="172.16.1.13"  # Replace with your target domain or IP address
+
+echo "Scanning ports on $target"
+
+for port in {1..65535}
+do
+  (echo >/dev/tcp/$target/$port) >/dev/null 2>&1 && echo "Port $port is open"
+done
+
+```
+```
+$ proxychains portscan.sh
+```
+
+Port enumeration
 ```
 $ proxychains nmap 172.16.1.13 -p80,443,445 -sT -sV -A -Pn -vvvv
 ```
