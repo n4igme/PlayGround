@@ -211,7 +211,7 @@ susan@perfection:~$ cat user.txt
 
 ```
 
-## Lateral Movement
+# Lateral Movement
 ```bash
 susan@perfection:~$ ls
 Migration  revshell.elf  ruby_app  user.txt
@@ -307,7 +307,7 @@ Bitmaps: 16 bits, 65536 entries, 0x0000ffff mask, 262144 bytes, 5/13 rotates
 ```
 Password: `susan_nasus_413759210`
 
-## Got Root
+# Got Root
 ```
 susan@perfection:~$ sudo -l
 [sudo] password for susan: susan_nasus_413759210
