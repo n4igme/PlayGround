@@ -14,15 +14,3 @@ This **Penetration Tester Level I** lab will expose players to:
 - Web Application Attacks
 
 Your entry point is in **10.10.110.0/24**. The firewall at **10.10.110.2** is out of scope
-
-Private IP List:
-[] 172.16.1.5
-[x] 172.16.1.10
-[x] 172.16.1.12
-[x] 172.16.1.13
-[x] 172.16.1.17
-[] 172.16.1.19
-[] 172.16.1.20
-[] 172.16.1.100
-[] 172.16.1.101
-[x] 172.16.1.102
