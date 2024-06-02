@@ -11,7 +11,7 @@
 
 
 ## Contributors
-1. [nΞkøni](https://twitter.com/nitrospection) (HTB Profile: [@nbsc7](https://app.hackthebox.com/users/1676380))
+1. [nΞkøni](https://twitter.com/nitrospection) ((<https://app.hackthebox.com/users/1676380>))
 
 <!-- Markdown link & img dfn's -->
 [htb-image]: https://image.emojisky.com/535/12772535-middle.png
